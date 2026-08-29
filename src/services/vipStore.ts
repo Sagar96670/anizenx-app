@@ -1,6 +1,6 @@
 import { VipPlan, VipUser, PaymentSettings, VipRequest, PhonePeInitiateResponse, PhonePeStatusResponse } from '../types/admin';
 import { doc, setDoc, getDoc, getDocs, collection, updateDoc, onSnapshot, query, where, orderBy } from 'firebase/firestore';
-import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
+import { onAuthStateChanged, signInWithPopup, signOut, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { auth, db, googleProvider } from './firebase';
 
 const VIP_STORAGE_KEY = 'anizenx_vip_user_session';
@@ -85,8 +85,21 @@ const DEFAULT_FREE_USER: VipUser = {
   userName: 'Anime Explorer',
 };
 
-// In-memory state
-let currentUser: VipUser = DEFAULT_FREE_USER;
+// In-memory state with immediate local cache restoration
+let currentUser: VipUser = (() => {
+  try {
+    const raw = localStorage.getItem(VIP_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && parsed.userId) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.warn('Error reading cached VIP user:', e);
+  }
+  return DEFAULT_FREE_USER;
+})();
 
 let currentPlans: VipPlan[] = (() => {
   try {
@@ -214,7 +227,16 @@ onAuthStateChanged(auth, (user) => {
         notifyVipChange();
       }
     }, (error) => {
-      console.error('Firestore user snapshot error:', error);
+      console.warn('Firestore user snapshot notice:', error);
+      // Even if Firestore snapshot encounters error, keep authenticated session active
+      currentUser = {
+        ...currentUser,
+        userId: user.uid,
+        email: user.email || currentUser.email || '',
+        userName: user.displayName || currentUser.userName || 'Anime Explorer',
+        photoURL: user.photoURL || currentUser.photoURL || '',
+      };
+      notifyVipChange();
     });
   } else {
     // Guest Mode
@@ -229,31 +251,65 @@ onAuthStateChanged(auth, (user) => {
 });
 
 /**
- * Trigger Google OAuth login popup
+ * Trigger Google OAuth login popup with browserLocalPersistence and fallback logic
  */
 export async function loginWithGoogle(): Promise<any> {
   const provider = googleProvider;
   provider.setCustomParameters({ prompt: 'select_account' });
+
   try {
+    // Ensure persistence is set to browserLocalPersistence before popup launch
+    await setPersistence(auth, browserLocalPersistence);
     const result = await signInWithPopup(auth, provider);
     return result.user;
   } catch (err: any) {
     const code = err?.code || '';
+    
     // Benign user cancellations / dismissals - do not log as fatal error or rethrow unhandled
     if (
       code === 'auth/popup-closed-by-user' ||
       code === 'auth/cancelled-popup-request' ||
       code === 'auth/user-cancelled'
     ) {
-      console.info('Google Sign-In popup closed or cancelled by user.');
+      console.info('[Google Auth] Sign-In popup closed or cancelled by user.');
       return null;
     }
+
+    // Popup was blocked by browser or mobile in-app browser restrictions
     if (code === 'auth/popup-blocked') {
-      console.warn('Google Sign-In popup was blocked by browser. Please allow popups for this site.');
+      const msg = 'Google Sign-In popup was blocked by your browser settings. Please allow popups for this site, or open this page in standard Chrome/Safari to sign in.';
+      console.warn('[Google Auth]', msg);
+      if (typeof window !== 'undefined' && window.alert) {
+        alert(msg);
+      }
       return null;
     }
-    console.error('Google Sign-In error:', err);
-    throw err;
+
+    // Unauthorized domain in Firebase configuration
+    if (code === 'auth/unauthorized-domain') {
+      const msg = 'Current domain is not authorized in Firebase Auth configuration. Please add this domain under Firebase Console > Authentication > Settings > Authorized Domains.';
+      console.error('[Google Auth]', msg);
+      if (typeof window !== 'undefined' && window.alert) {
+        alert(msg);
+      }
+      return null;
+    }
+
+    // Network / offline errors
+    if (code === 'auth/network-request-failed') {
+      const msg = 'Network error during Google Sign-In. Please check your internet connection and try again.';
+      console.warn('[Google Auth]', msg);
+      if (typeof window !== 'undefined' && window.alert) {
+        alert(msg);
+      }
+      return null;
+    }
+
+    console.error('[Google Auth] Sign-In error:', err);
+    if (typeof window !== 'undefined' && window.alert) {
+      alert(`Sign-in could not be completed (${err?.message || 'Unknown error'}). Please try again.`);
+    }
+    return null;
   }
 }
 
@@ -262,7 +318,21 @@ export async function loginWithGoogle(): Promise<any> {
  */
 export async function logoutUser(): Promise<void> {
   try {
+    if (unsubscribeSnapshot) {
+      unsubscribeSnapshot();
+      unsubscribeSnapshot = null;
+    }
     await signOut(auth);
+    try {
+      localStorage.removeItem(VIP_STORAGE_KEY);
+    } catch {}
+    currentUser = {
+      isVip: false,
+      tier: 'Free Explorer',
+      userId: 'guest_' + Math.random().toString(36).substring(2, 9),
+      userName: 'Anime Explorer',
+    };
+    notifyVipChange();
   } catch (err) {
     console.error('Log out failed:', err);
     throw err;
