@@ -261,6 +261,22 @@ export async function loginWithGoogle(): Promise<any> {
     // Ensure persistence is set to browserLocalPersistence before popup launch
     await setPersistence(auth, browserLocalPersistence);
     const result = await signInWithPopup(auth, provider);
+    if (result && result.user) {
+      const user = result.user;
+      currentUser = {
+        ...currentUser,
+        userId: user.uid,
+        email: user.email || currentUser.email || '',
+        userName: user.displayName || currentUser.userName || 'Anime Explorer',
+        photoURL: user.photoURL || currentUser.photoURL || '',
+      };
+      try {
+        localStorage.setItem(VIP_STORAGE_KEY, JSON.stringify(currentUser));
+      } catch (e) {
+        console.warn('Failed to save user session to localStorage:', e);
+      }
+      notifyVipChange();
+    }
     return result.user;
   } catch (err: any) {
     const code = err?.code || '';

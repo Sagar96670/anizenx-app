@@ -38,6 +38,7 @@ interface NavbarProps {
   onOpenApiModal?: () => void;
   onOpenAdminModal?: () => void;
   onOpenVipModal?: () => void;
+  onOpenProfileModal?: () => void;
   onOpenSearchModal: (initialQuery?: string) => void;
   activeProvider?: ApiProviderConfig;
   watchlistCount: number;
@@ -52,6 +53,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenApiModal,
   onOpenAdminModal,
   onOpenVipModal,
+  onOpenProfileModal,
   onOpenSearchModal,
   activeProvider,
   watchlistCount,
@@ -348,7 +350,13 @@ export const Navbar: React.FC<NavbarProps> = ({
 
                   {showProfileMenu && (
                     <div className="absolute right-0 top-full mt-2 w-64 bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl p-4 z-50 flex flex-col gap-3.5 animate-fadeIn">
-                      <div className="flex items-center gap-3 pb-3 border-b border-neutral-800/60">
+                      <div 
+                        onClick={() => {
+                          setShowProfileMenu(false);
+                          if (onOpenProfileModal) onOpenProfileModal();
+                        }}
+                        className="flex items-center gap-3 pb-3 border-b border-neutral-800/60 cursor-pointer hover:opacity-80 transition-opacity"
+                      >
                         <div className={`w-10 h-10 rounded-xl overflow-hidden shrink-0 border ${
                           membershipEnabled && vipActive ? 'border-amber-500' : 'border-neutral-700'
                         }`}>
@@ -363,6 +371,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                         <div className="min-w-0">
                           <div className="text-sm font-bold text-white truncate leading-tight">{userProfile.userName}</div>
                           <div className="text-[11px] text-neutral-400 truncate leading-tight mt-0.5">{userProfile.email}</div>
+                          <div className="text-[10px] text-rose-400 font-bold mt-0.5 flex items-center gap-1">
+                            <span>View Account Details</span>
+                            <span>→</span>
+                          </div>
                         </div>
                       </div>
 
@@ -410,12 +422,23 @@ export const Navbar: React.FC<NavbarProps> = ({
                       )}
 
                       <button
+                        id="dropdown-view-profile-btn"
+                        onClick={() => {
+                          setShowProfileMenu(false);
+                          if (onOpenProfileModal) onOpenProfileModal();
+                        }}
+                        className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-neutral-800 hover:bg-neutral-750 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                      >
+                        <span>User Profile & Perks</span>
+                      </button>
+
+                      <button
                         id="dropdown-logout-btn"
                         onClick={async () => {
                           setShowProfileMenu(false);
                           await logoutUser();
                         }}
-                        className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-neutral-950 hover:bg-neutral-800 text-neutral-300 hover:text-white border border-neutral-850 rounded-xl text-xs font-bold transition-colors cursor-pointer mt-1"
+                        className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-neutral-950 hover:bg-neutral-800 text-neutral-300 hover:text-white border border-neutral-850 rounded-xl text-xs font-bold transition-colors cursor-pointer mt-0.5"
                       >
                         <span>Logout Account</span>
                       </button>
@@ -427,7 +450,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                   id="header-sign-in-btn"
                   onClick={async () => {
                     try {
-                      await loginWithGoogle();
+                      const res = await loginWithGoogle();
+                      if (res && onOpenProfileModal) {
+                        onOpenProfileModal();
+                      }
                     } catch (e: any) {
                       if (e?.code !== 'auth/popup-closed-by-user' && e?.code !== 'auth/cancelled-popup-request') {
                         console.error('Google login trigger failed:', e);
@@ -499,7 +525,13 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Mobile Auth and Super Admin (Strict Email Restricted) */}
             {isLoggedIn && userProfile ? (
               <>
-                <div className="col-span-2 flex items-center gap-3 p-3 bg-neutral-900/50 border border-neutral-800 rounded-xl">
+                <div 
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    if (onOpenProfileModal) onOpenProfileModal();
+                  }}
+                  className="col-span-2 flex items-center gap-3 p-3 bg-neutral-900/80 border border-neutral-800 rounded-xl cursor-pointer hover:border-neutral-700 transition-colors"
+                >
                   <div className={`w-9 h-9 rounded-lg overflow-hidden shrink-0 border ${
                     membershipEnabled && vipActive ? 'border-amber-500' : 'border-neutral-700'
                   }`}>
@@ -518,6 +550,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       {membershipEnabled ? (vipActive ? `👑 ${vipPlanName}` : 'FREE MEMBER') : 'MEMBER'}
                     </div>
                   </div>
+                  <span className="text-[10px] text-rose-400 font-bold">Profile →</span>
                 </div>
 
                 {isAdmin && onOpenAdminModal && (
@@ -534,11 +567,21 @@ export const Navbar: React.FC<NavbarProps> = ({
                 )}
 
                 <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    if (onOpenProfileModal) onOpenProfileModal();
+                  }}
+                  className="col-span-2 px-3 py-2 bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 text-neutral-200 text-xs font-bold rounded-lg text-center cursor-pointer"
+                >
+                  View Account Profile & Perks
+                </button>
+
+                <button
                   onClick={async () => {
                     setMobileMenuOpen(false);
                     await logoutUser();
                   }}
-                  className="col-span-2 px-3 py-2 bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 text-neutral-300 text-xs font-bold rounded-lg text-center cursor-pointer"
+                  className="col-span-2 px-3 py-2 bg-neutral-950 hover:bg-neutral-900 border border-neutral-850 text-neutral-400 hover:text-white text-xs font-bold rounded-lg text-center cursor-pointer"
                 >
                   Logout Account
                 </button>
@@ -548,7 +591,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onClick={async () => {
                   setMobileMenuOpen(false);
                   try {
-                    await loginWithGoogle();
+                    const res = await loginWithGoogle();
+                    if (res && onOpenProfileModal) {
+                      onOpenProfileModal();
+                    }
                   } catch (e: any) {
                     if (e?.code !== 'auth/popup-closed-by-user' && e?.code !== 'auth/cancelled-popup-request') {
                       console.error('Google Sign-In Mobile failed:', e);

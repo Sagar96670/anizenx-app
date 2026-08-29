@@ -46,10 +46,12 @@ import { Footer } from './components/Footer';
 import { PlayerSkeletonModal } from './components/PlayerSkeletonModal';
 import { AdBanner } from './components/AdBanner';
 import { VipUpgradeModal } from './components/VipUpgradeModal';
+import { UserProfileModal } from './components/UserProfileModal';
 import { MaintenanceOverlay } from './components/MaintenanceOverlay';
 import { PwaInstallBanner } from './components/PwaInstallBanner';
 import { initPwaService } from './services/pwaService';
-import { isVipActive, subscribeToVip, getVipProfile } from './services/vipStore';
+import { isVipActive, subscribeToVip, getVipProfile, getVipPlans } from './services/vipStore';
+import { VipUser } from './types/admin';
 import { getAdminConfig, subscribeToAdminConfig, AdminConfig } from './services/adminStore';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -121,6 +123,8 @@ export default function App() {
   const [apiModalOpen, setApiModalOpen] = useState<boolean>(false);
   const [adminModalOpen, setAdminModalOpen] = useState<boolean>(false);
   const [vipModalOpen, setVipModalOpen] = useState<boolean>(false);
+  const [profileModalOpen, setProfileModalOpen] = useState<boolean>(false);
+  const [userProfile, setUserProfile] = useState<VipUser>(getVipProfile());
   const [isVip, setIsVip] = useState<boolean>(isVipActive());
   const [isAdmin, setIsAdmin] = useState<boolean>(getVipProfile().email === 'sagars19585@gmail.com');
   const [adminConfig, setAdminConfig] = useState<AdminConfig>(getAdminConfig());
@@ -134,6 +138,7 @@ export default function App() {
   useEffect(() => {
     initPwaService();
     const unsubVip = subscribeToVip((u) => {
+      setUserProfile(u);
       setIsVip(u.isVip);
       setIsAdmin(u.email === 'sagars19585@gmail.com');
     });
@@ -374,12 +379,28 @@ export default function App() {
         setVipModalOpen(true);
       }
 
-      // 3. /search or #search
+      // 3. /profile or /account or /dashboard or #profile or #account
+      if (
+        path === '/profile' ||
+        path.startsWith('/profile/') ||
+        path === '/account' ||
+        path.startsWith('/account/') ||
+        path === '/dashboard' ||
+        path === '/user' ||
+        hash === '#profile' ||
+        hash === '#account' ||
+        hash === '#dashboard' ||
+        hash === '#user'
+      ) {
+        setProfileModalOpen(true);
+      }
+
+      // 4. /search or #search
       if (path === '/search' || hash === '#search') {
         setSearchModalOpen(true);
       }
 
-      // 4. /anime/:id
+      // 5. /anime/:id
       if (path.startsWith('/anime/')) {
         const id = path.replace('/anime/', '').trim();
         if (id) {
@@ -392,7 +413,7 @@ export default function App() {
     window.addEventListener('popstate', handleUrlRoute);
     window.addEventListener('hashchange', handleUrlRoute);
 
-    // Global keyboard shortcuts: Ctrl+Shift+A (Admin), Ctrl+Shift+V (VIP)
+    // Global keyboard shortcuts: Ctrl+Shift+A (Admin), Ctrl+Shift+V (VIP), Ctrl+Shift+P (Profile)
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'a') {
         e.preventDefault();
@@ -400,6 +421,9 @@ export default function App() {
       } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'v') {
         e.preventDefault();
         handleOpenVip();
+      } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'p') {
+        e.preventDefault();
+        handleOpenProfile();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -439,6 +463,20 @@ export default function App() {
   const handleCloseVip = () => {
     setVipModalOpen(false);
     if (window.location.pathname === '/vip' || window.location.pathname === '/plans') {
+      window.history.pushState(null, '', '/');
+    }
+  };
+
+  const handleOpenProfile = () => {
+    setProfileModalOpen(true);
+    if (window.location.pathname !== '/profile' && window.location.pathname !== '/account') {
+      window.history.pushState({ modal: 'profile' }, '', '/profile');
+    }
+  };
+
+  const handleCloseProfile = () => {
+    setProfileModalOpen(false);
+    if (window.location.pathname === '/profile' || window.location.pathname === '/account' || window.location.pathname === '/user') {
       window.history.pushState(null, '', '/');
     }
   };
@@ -495,6 +533,7 @@ export default function App() {
         onOpenApiModal={() => setApiModalOpen(true)}
         onOpenAdminModal={handleOpenAdmin}
         onOpenVipModal={handleOpenVip}
+        onOpenProfileModal={handleOpenProfile}
         onOpenSearchModal={() => setSearchModalOpen(true)}
         activeProvider={activeProvider}
         watchlistCount={watchlistCount}
@@ -938,6 +977,18 @@ export default function App() {
       <VipUpgradeModal
         isOpen={vipModalOpen}
         onClose={handleCloseVip}
+      />
+
+      {/* USER PROFILE & ACCOUNT DASHBOARD MODAL */}
+      <UserProfileModal
+        isOpen={profileModalOpen}
+        onClose={handleCloseProfile}
+        user={userProfile}
+        plans={getVipPlans()}
+        onOpenVipModal={handleOpenVip}
+        onOpenAdminModal={isAdmin ? handleOpenAdmin : undefined}
+        onNavigateWatchlist={() => setActiveView('watchlist')}
+        isAdmin={isAdmin}
       />
     </div>
   );
