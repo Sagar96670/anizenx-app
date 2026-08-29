@@ -1,0 +1,75 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with VIP subscription information",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "email": { "type": "string" },
+        "isVip": { "type": "boolean" },
+        "tier": { "type": "string" },
+        "planId": { "type": "string" },
+        "planName": { "type": "string" },
+        "activatedAt": { "type": "string" },
+        "expiresAt": { "type": "string" },
+        "paymentMethod": { "type": "string" },
+        "transactionId": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["userId", "email", "isVip", "tier"]
+    },
+    "PaymentSettings": {
+      "title": "PaymentSettings",
+      "description": "Administrative Payment Gateway Settings (PhonePe / Bank / UPI)",
+      "type": "object",
+      "properties": {
+        "phonePeQrUrl": { "type": "string" },
+        "upiId": { "type": "string" },
+        "merchantId": { "type": "string" },
+        "bankAccount": { "type": "string" },
+        "ifscCode": { "type": "string" },
+        "accountHolder": { "type": "string" },
+        "phonePeApiKey": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["upiId", "merchantId", "bankAccount", "ifscCode", "accountHolder"]
+    },
+    "VipRequest": {
+      "title": "VipRequest",
+      "description": "Manual VIP Plan Verification Requests submitted by users",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "email": { "type": "string" },
+        "planId": { "type": "string" },
+        "planName": { "type": "string" },
+        "priceInr": { "type": "integer" },
+        "transactionId": { "type": "string" },
+        "proofImageUrl": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "processedAt": { "type": "string" },
+        "rejectReason": { "type": "string" }
+      },
+      "required": ["userId", "userName", "email", "planId", "planName", "priceInr", "transactionId", "proofImageUrl", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User documents keyed by Firebase Auth UID"
+    },
+    "/settings/{settingId}": {
+      "schema": "PaymentSettings",
+      "description": "Global Settings containing Payment Gateways and configuration keys"
+    },
+    "/vip_requests/{requestId}": {
+      "schema": "VipRequest",
+      "description": "Manual UTR and receipt screenshot requests pending Admin verification"
+    }
+  }
+}

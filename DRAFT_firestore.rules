@@ -1,0 +1,88 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Global Safety Net (Pillar 1)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Hardened Global Helpers (Pillar 3) ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'sagars19585@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // --- Validation Blueprints (Pillar 2) ---
+    function isValidUser(data) {
+      return data.keys().hasAll(['userId', 'email', 'isVip', 'tier'])
+        && data.userId is string
+        && data.email is string
+        && data.isVip is bool
+        && data.tier is string;
+    }
+
+    function isValidVipRequest(data) {
+      return data.keys().hasAll(['userId', 'userName', 'email', 'planId', 'planName', 'priceInr', 'transactionId', 'proofImageUrl', 'status', 'createdAt'])
+        && data.userId is string
+        && data.userName is string
+        && data.email is string
+        && data.planId is string
+        && data.planName is string
+        && data.priceInr is int
+        && data.transactionId is string
+        && data.proofImageUrl is string
+        && data.status is string
+        && data.createdAt is string;
+    }
+
+    // --- Rules Match Blocks (Pillar 1, 4, 5, 6, 8) ---
+    
+    // 1. Users collection
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.isVip == false;
+      allow update: if isAdmin() || (isOwner(userId) && request.resource.data.isVip == resource.data.isVip && request.resource.data.tier == resource.data.tier);
+      allow delete: if isAdmin();
+    }
+
+    // 2. Settings collection (Pillar 6 - PII Isolation)
+    match /settings/{settingId} {
+      allow read: if true; // anyone can fetch payment gateway configs to subscribe
+      allow write: if isAdmin() && isValidId(settingId);
+    }
+
+    // 3. Manual VIP verification requests (Pillar 4 - Tiered Identity Logic, Pillar 8 - Secure List Queries)
+    match /vip_requests/{requestId} {
+      allow get: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow list: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isSignedIn() 
+        && isValidId(requestId)
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && isValidVipRequest(request.resource.data);
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 4. Admins collection
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+  }
+}

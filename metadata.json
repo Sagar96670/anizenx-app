@@ -1,0 +1,8 @@
+{
+  "name": "AnizenX",
+  "description": "Unified Super Admin Dashboard, PWA System, Dynamic Ad Engine, VIP Paywall, and VIP Ad-Free System for AnizenX Anime Streaming.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
