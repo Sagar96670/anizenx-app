@@ -3,12 +3,12 @@ import { getAuth, GoogleAuthProvider, setPersistence, browserLocalPersistence } 
 import { getFirestore } from 'firebase/firestore';
 
 export const firebaseConfig = {
-  apiKey: "AIzaSyCCZJtUvp0SIxjvHCFB5csKbCLtYshjLks",
-  authDomain: "amplified-eon-4xctm.firebaseapp.com",
-  projectId: "amplified-eon-4xctm",
-  storageBucket: "amplified-eon-4xctm.firebasestorage.app",
-  messagingSenderId: "409521098058",
-  appId: "1:409521098058:web:7e068138a90a037c9c05b3",
+  apiKey: "AIzaSyBwjbxyuXnRrQjPGezSjaAbuNJEm-kgeFw",
+  authDomain: "anizenx-e9993.firebaseapp.com",
+  projectId: "anizenx-e9993",
+  storageBucket: "anizenx-e9993.firebasestorage.app",
+  messagingSenderId: "659295794756",
+  appId: "1:659295794756:web:aa4c23fbe1a60ea9b32e11",
   firestoreDatabaseId: "ai-studio-remixanimestream-90de7754-8e9f-44c7-8abd-64b62acbeaf8"
 };
 

@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/__/auth/:path*",
-      "destination": "https://amplified-eon-4xctm.firebaseapp.com/__/auth/:path*"
+      "destination": "https://anizenx-e9993.firebaseapp.com/__/auth/:path*"
     },
     {
       "source": "/(.*)",
