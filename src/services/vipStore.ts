@@ -1,6 +1,6 @@
 import { VipPlan, VipUser, PaymentSettings, VipRequest, PhonePeInitiateResponse, PhonePeStatusResponse } from '../types/admin';
 import { doc, setDoc, getDoc, getDocs, collection, updateDoc, onSnapshot, query, where, orderBy } from 'firebase/firestore';
-import { onAuthStateChanged, signInWithPopup, signOut, setPersistence, browserLocalPersistence } from 'firebase/auth';
+import { onAuthStateChanged, signInWithPopup, signOut, setPersistence, browserLocalPersistence, GoogleAuthProvider } from 'firebase/auth';
 import { auth, db, googleProvider } from './firebase';
 
 const VIP_STORAGE_KEY = 'anizenx_vip_user_session';
@@ -254,7 +254,9 @@ onAuthStateChanged(auth, (user) => {
  * Trigger Google OAuth login popup with browserLocalPersistence and fallback logic
  */
 export async function loginWithGoogle(): Promise<any> {
-  const provider = googleProvider;
+  const provider = new GoogleAuthProvider();
+  provider.addScope('email');
+  provider.addScope('profile');
   provider.setCustomParameters({ prompt: 'select_account' });
 
   try {
@@ -280,6 +282,7 @@ export async function loginWithGoogle(): Promise<any> {
     return result.user;
   } catch (err: any) {
     const code = err?.code || '';
+    const message = err?.message || '';
     
     // Benign user cancellations / dismissals - do not log as fatal error or rethrow unhandled
     if (
@@ -321,9 +324,23 @@ export async function loginWithGoogle(): Promise<any> {
       return null;
     }
 
+    // Invalid action code or domain redirect error
+    if (
+      code === 'auth/invalid-action-code' ||
+      message.includes('The requested action is invalid') ||
+      code === 'auth/internal-error'
+    ) {
+      const msg = 'Google Sign-In action expired or was redirected incorrectly. Using popup authentication directly prevents this error. Please try clicking Google Sign-In once more.';
+      console.warn('[Google Auth]', msg, err);
+      if (typeof window !== 'undefined' && window.alert) {
+        alert(msg);
+      }
+      return null;
+    }
+
     console.error('[Google Auth] Sign-In error:', err);
     if (typeof window !== 'undefined' && window.alert) {
-      alert(`Sign-in could not be completed (${err?.message || 'Unknown error'}). Please try again.`);
+      alert(`Sign-in could not be completed (${message || 'Unknown error'}). Please try again.`);
     }
     return null;
   }
